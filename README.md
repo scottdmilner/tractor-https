@@ -232,3 +232,9 @@ of the Tractor engine (SSL requires the hostname to be fully qualified), e.g.
 ```bash
 path/to/tractor-blade3b1.pyz --engine=tractor-engine.example.com:443
 ```
+
+---
+
+**References**
+- https://docs.nginx.com/nginx/admin-guide/load-balancer/tcp-udp-load-balancer/
+- https://www.nginx.com/blog/ip-transparency-direct-server-return-nginx-plus-transparent-proxy/
