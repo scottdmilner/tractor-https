@@ -1,0 +1,13 @@
+215a
+            ### SSL PATCH CODE
+            context = ssl.create_default_context()
+            context.load_verify_locations(cafile='/etc/ssl/certs/ca-bundle.crt')
+            hsock = context.wrap_socket(hsock, server_hostname=self.resolveEngineHost()[0])
+            ### END SSL PATCH CODE
+            
+.
+35a
+### SSL PATCH CODE
+import ssl
+### END SSL PATCH CODE
+.

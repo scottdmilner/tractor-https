@@ -1,0 +1,121 @@
+services:
+  # Main engine container
+  engine:
+    build: 
+      context: ./tractor-base
+      network: host
+    command:
+      - "/opt/pixar/Tractor-2.4/bin/tractor-engine"
+      - "--configdir"
+      - "/home/tractor-engine/config"
+      - "--debug"
+      - "--log"
+      - "-"
+    env_file:
+      - env
+    expose:
+      - 8080
+      - 8080/udp
+    image: tractor-base
+    networks:
+      internal:
+        aliases:
+          - engine
+        ipv4_address: 172.20.0.2
+    ports:
+      - 1900:1900
+      - 9005:9005
+      - 9010:9010
+      - 9180:9180
+    restart: always
+    user: tractor-engine
+    volumes:
+      # files for tractor engine operation
+      - type: volume
+        source: tractor-db
+        target: /var/spool/tractor
+      - type: bind
+        source: ./config
+        target: /home/tractor-engine/config
+      # files for PAM authentication
+      - type: bind
+        source: /etc/nsswitch.conf
+        target: /etc/nsswitch.conf
+      - type: bind
+        source: /var/lib/sss/pipes
+        target: /var/lib/sss/pipes
+
+  # Nginx reverse proxy
+  proxy:
+    cap_add: 
+      - NET_ADMIN
+      - NET_RAW
+    depends_on:
+      - engine
+    extra_hosts:
+      - engine:172.20.0.2
+    image: nginx:stable-alpine
+    network_mode: host
+    restart: always
+    volumes:
+      # explicitly bind resolv.conf so proxy can act as a gateway with DNS to
+      #   engine
+      - type: bind
+        source: /etc/resolv.conf
+        target: /etc/resolv.conf
+        read_only: True
+      - type: bind
+        source: ./certs
+        target: /etc/certs
+      - type: bind
+        source: ./proxy/nginx.conf
+        target: /etc/nginx/nginx.conf
+      - type: bind
+        source: ./proxy/networking.sh
+        target: /docker-entrypoint.d/05-networking.sh
+
+  # Keep crews synced with LDAP
+  crew-sync:
+    command:
+      - "/home/tractor-engine/crew-sync.sh"
+    depends_on:
+      - engine
+    env_file:
+      - env
+    environment:
+      - CONFIG_DIR=/var/tractor-config
+    image: tractor-base
+    networks:
+      internal:
+    restart: always
+    secrets:
+      - tractor_admin
+    volumes:
+      - type: bind
+        source: ./config
+        target: /var/tractor-config
+      - type: bind
+        source: ./crew-sync.sh
+        target: /home/tractor-engine/crew-sync.sh
+      - type: bind
+        source: /etc/nsswitch.conf
+        target: /etc/nsswitch.conf
+      - type: bind
+        source: /var/lib/sss/pipes
+        target: /var/lib/sss/pipes
+      
+volumes:
+  tractor-db:
+
+# define network with explicit IP address so we can use extra_hosts to add
+#   engine to proxy's DNS
+networks:
+  internal:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
+secrets:
+  tractor_admin:
+    file: ./admin_user.txt

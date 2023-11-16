@@ -1,0 +1,7 @@
+*.rpm
+env
+*/env
+certs/cert.*
+admin_user.txt
+config/admins
+config/wranglers
